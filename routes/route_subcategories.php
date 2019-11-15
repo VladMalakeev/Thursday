@@ -1,0 +1,101 @@
+<?php
+
+
+$full_uri = $_SERVER['REQUEST_URI'];
+$uri = preg_split('/\?/', $full_uri);
+$route_arr = preg_split('/\//', $uri[0]);
+$path = $route_arr[2];
+
+$dbSubCategory = new DBSubcategories();
+$responseCode = new Responses();
+
+if (ctype_digit($path)) {
+    switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            try {
+                $lang = 'eng';
+                $admin = false;
+                if ($_GET['lang']) $lang = $_GET['lang'];
+                if ($_GET['admin']) $admin = $_GET['admin']==='true'?true:false;
+                $result = $dbSubCategory->getSubCategoryById($path, $lang, $admin);
+
+                echo $result;
+            } catch (Exception $e) {
+                $responseCode->response_400($e->getMessage());
+            }
+            break;
+        default:
+            $responseCode->response_405();
+    }
+} else if (!$path) {
+    switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            $lang = 'eng';
+            $admin = false;
+            if ($_GET['catId']) {
+                if($_GET['lang'])$lang = $_GET['lang'];
+                if ($_GET['admin']) $admin = $_GET['admin']==='true'?true:false;
+                $_catId = $_GET['catId'];
+                try {
+                    $result = $dbSubCategory->getSubCategories($lang, $_catId, $admin);
+                    echo $result;
+                } catch (Exception $e) {
+                    $responseCode->response_400($e->getMessage());
+                }
+            }else{
+                $responseCode->response_400();
+            }
+            break;
+        case 'POST':
+            if ($_POST['name'] && $_POST['catId']) {
+                $name = $_POST['name'];
+                $catId = $_POST['catId'];
+                try {
+                    $result = $dbSubCategory->addSubCategory($name, $catId);
+                    echo json_encode($result, true);
+                } catch (Exception $e) {
+                    $responseCode->response_400($e->getMessage());
+                }
+            } else {
+                $responseCode->response_400();
+            }
+            break;
+        case 'PUT':
+            $_PUT = getPutDeleteData();
+            if ($_PUT !== false) {
+                if ($_PUT['id'] && $_PUT['name']) {
+                    $id = $_PUT['id'];
+                    $name = $_PUT['name'];
+                    try{
+                        echo $dbSubCategory->editSubCategory($id,$name);
+                    }catch (Exception $e){
+                        $responseCode->response_400($e->getMessage());
+                    }
+                } else {
+                    $responseCode->response_400();
+                }
+            } else $responseCode->response_400('Incorrect content-type');
+            break;
+            break;
+        case 'DELETE':
+            $_DELETE = getPutDeleteData();
+            if ($_DELETE !== false) {
+                if($_DELETE['id']){
+                    try {
+                        $id = $_DELETE['id'];
+                        $res = $dbSubCategory->deleteSubCategory($id);
+                        echo $res;
+                    } catch (Exception $e) {
+                        $responseCode->response_400($e->getMessage());
+                    }
+                }else{
+                    $responseCode->response_400();
+                }
+            }else $responseCode->response_400('Incorrect content-type');
+            break;
+        default:
+            $responseCode->response_405();
+    }
+} else {
+    $responseCode->response_404();
+}
